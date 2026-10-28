@@ -4,10 +4,10 @@ const colours=['#f5bd4d','#63daca','#b9a2ff','#ff91ad','#77bbff','#ff9c61'];
 let selected=0,busy=false,drops=0,wins=0,sound=true,audio=null,epoch=0;
 function randomInt(n){const a=new Uint32Array(1),limit=Math.floor(4294967296/n)*n;do{crypto.getRandomValues(a)}while(a[0]>=limit);return a[0]%n}
 function makePath(){
-  // Eleven independent fair bounces. On the last bounce, the two reachable
-  // neighbouring slots always have opposite results, preserving 50/50 odds.
+  // Ten fair bounces, then a weighted final bounce between opposite results.
+  // Three of ten equally likely final draws win; seven lose on every route.
   let x=400;const points=[{x,y:54}];
-  for(let row=0;row<11;row++){points.push({x,y:88+row*39});x+=randomInt(2)===0?-28:28;points.push({x,y:108+row*39})}
+  for(let row=0;row<11;row++){points.push({x,y:88+row*39});if(row<10)x+=randomInt(2)===0?-28:28;else {const leftSlot=(x-28-92)/56,wantsWin=randomInt(10)<3; x+=(leftSlot%2===0)===wantsWin?-28:28;}points.push({x,y:108+row*39})}
   const slot=(x-92)/56;points.push({x,y:586});return {win:slot%2===0,slot,points};
 }
 function svg(tag,attrs,parent){const el=document.createElementNS(NS,tag);for(const [k,v] of Object.entries(attrs))el.setAttribute(k,v);parent.append(el);return el}
