@@ -37,7 +37,8 @@ function score(){$('drops').textContent=drops;$('wins').textContent=wins;$('loss
 $('drop').onclick=()=>{
  if(busy||used.has(selected))return;used.add(selected);unlockAudio();tone(600,.16,'sine',0,.12,350);busy=true;
  const token=++epoch,{win,slot,points}=makePath();clearLanding();position(400,54);renderChoice();message(`Disc ${selected+1} is on its way…`,'It can all change on the final bounce!');let start,previous=-1;
- const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches,duration=reduced?900:4900;
+ // Keep the full drop duration on all devices; reduced motion only suppresses confetti.
+ const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches,duration=4900;
  function frame(t){
   if(token!==epoch)return;start??=t;const p=Math.min((t-start)/duration,1),s=p*(points.length-1),i=Math.min(Math.floor(s),points.length-2),f=p===1?1:s-i,a=points[i],b=points[i+1];
   position(a.x+(b.x-a.x)*f,a.y+(b.y-a.y)*f-(i%2===1?Math.sin(f*Math.PI)*8:0));
