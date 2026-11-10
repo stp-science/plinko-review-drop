@@ -23,15 +23,66 @@
 <section class="console" aria-label="Turn controls"><div><span class="step" id="step">STEP 1 · ANSWER</span><p class="status" id="status" role="status" aria-live="polite">Ask a lesson question. A correct answer earns a turn.</p></div><button class="primary" id="start">Correct answer → choose</button></section>
 <div class="board-wrap"><section class="board" id="board" aria-label="Three rows of ten numbered screens"></section></div>
 <div class="legend"><span><b class="hotkey">✹</b>HOT SPOT · LOSE</span><span><b class="qkey">Q</b>ANOTHER QUESTION</span><span><b class="winkey">➜</b>INSTANT WIN</span></div>
-<footer class="footer"><div class="scores"><span>Turns <strong id="turns">0</strong></span><span>Wins <strong id="wins">0</strong></span><span>Remaining <strong id="remaining">30</strong></span></div><span>60% hot spot · 20% question · 20% instant win</span><button class="small" id="reset">New board</button></footer>
+<footer class="footer"><div class="scores"><span>Turns <strong id="turns">0</strong></span><span>Wins <strong id="wins">0</strong></span><span>Remaining <strong id="remaining">30</strong></span></div><button class="small" id="reset">New board</button></footer>
 </main>
 <dialog id="result" aria-labelledby="result-title"><div class="result-icon" id="icon" aria-hidden="true"></div><p class="eyebrow" id="picked"></p><h2 id="result-title"></h2><p id="result-copy"></p><div class="actions" id="result-actions"></div></dialog>
-<dialog id="instructions" aria-labelledby="help-title"><h2 id="help-title">How to play</h2><div class="instructions"><p>1. Ask a question from today’s lesson. If the student answers correctly, click <strong>Correct answer → choose</strong>.</p><p>2. The student chooses <strong>Top, Middle or Bottom</strong>, then a numbered screen in that row.</p><p>3. <strong>Green arrow:</strong> they win! <strong>Q:</strong> ask another question and mark the answer correct or incorrect. <strong>Flashing hot spot:</strong> they lose this turn.</p><p>You decide the reward. Ask all questions aloud, using any topic or year group. Each screen independently has a 60% chance of a hot spot, 20% of a question and 20% of an instant win. Exact totals vary between boards.</p><label><input type="checkbox" id="motion"> Reduce animations</label></div><button class="primary" id="close-help">Let’s play</button></dialog>
+<dialog id="instructions" aria-labelledby="help-title"><h2 id="help-title">How to play</h2><div class="instructions"><p>1. Ask a question from today’s lesson. If the student answers correctly, click <strong>Correct answer → choose</strong>.</p><p>2. The student chooses <strong>Top, Middle or Bottom</strong>, then a numbered screen in that row.</p><p>3. <strong>Green arrow:</strong> they win! <strong>Q:</strong> read the general knowledge question and mark the answer correct or incorrect. <strong>Flashing hot spot:</strong> they lose this turn.</p><p>You decide the reward. Ask all questions aloud, using any topic or year group. The hidden outcomes are shuffled on every load and every new board.</p><label><input type="checkbox" id="motion"> Reduce animations</label></div><button class="primary" id="close-help">Let’s play</button></dialog>
 <script>
 'use strict';
 const $=id=>document.getElementById(id);
 const ROWS=['Top','Middle','Bottom'];
-const outcomeFor=roll=>roll<0.6?'hot':roll<0.8?'question':'win';
+function shuffle(items){for(let i=items.length-1;i>0;i--){const j=Math.floor(random()*(i+1));[items[i],items[j]]=[items[j],items[i]];}return items;}
+const QUESTIONS=[
+ ['What is the largest planet in our Solar System?','Jupiter'],
+ ['How many sides does a hexagon have?','Six'],
+ ['What is the capital city of New Zealand?','Wellington'],
+ ['Which ocean lies between New Zealand and South America?','The Pacific Ocean'],
+ ['How many minutes are there in one hour?','60'],
+ ['Which animal is the tallest living land animal?','Giraffe'],
+ ['What is the name of the galaxy we live in?','The Milky Way'],
+ ['Which sport uses a shuttlecock?','Badminton'],
+ ['What is the frozen form of water called?','Ice'],
+ ['How many days are there in a leap year?','366'],
+ ['What is the largest ocean on Earth?','The Pacific Ocean'],
+ ['Which country is famous for the Eiffel Tower?','France'],
+ ['Which instrument has black and white keys and is played with both hands?','Piano'],
+ ['What do bees collect from flowers to make honey?','Nectar'],
+ ['How many legs does a spider have?','Eight'],
+ ['What is the main language spoken in Brazil?','Portuguese'],
+ ['Which planet is known as the Red Planet?','Mars'],
+ ['Which animal changes from a tadpole into an adult?','A frog or a toad'],
+ ['What is the name of the closest star to Earth?','The Sun'],
+ ['How many players are on the court for one netball team?','Seven'],
+ ['What is the capital city of Australia?','Canberra'],
+ ['Which country is home to the ancient pyramids at Giza?','Egypt'],
+ ['What is the name of the toy cowboy in Toy Story?','Woody'],
+ ['What type of animal is a dolphin?','A mammal'],
+ ['How many centimetres are there in one metre?','100'],
+ ['What do we call a word that has the opposite meaning to another word?','An antonym'],
+ ['How many colours are traditionally named in a rainbow?','Seven'],
+ ['Which continent is the South Pole on?','Antarctica'],
+ ['What is the name of the school Harry Potter attends?','Hogwarts'],
+ ['Which bird appears on the New Zealand one-dollar coin?','Kiwi'],
+ ['In which sport would you score a try?','Rugby union or rugby league'],
+ ['How many faces does a cube have?','Six'],
+ ['What is the name of the force that pulls objects towards Earth?','Gravity'],
+ ['Which fruit is dried to make raisins?','Grapes'],
+ ['What is the largest living land animal?','African elephant'],
+ ['How many strings does a standard guitar have?','Six'],
+ ['What is the Māori name commonly used for New Zealand?','Aotearoa'],
+ ['What is the name of the fairy in Peter Pan?','Tinker Bell'],
+ ['What is the name of the process plants use to make food using sunlight?','Photosynthesis'],
+ ['What is 12 multiplied by 12?','144']
+];
+let questionDeck=[],lastQuestion=null;
+function nextQuestion(){if(!questionDeck.length){questionDeck=shuffle([...QUESTIONS]);if(questionDeck.at(-1)===lastQuestion)[questionDeck[0],questionDeck[questionDeck.length-1]]=[questionDeck.at(-1),questionDeck[0]];}lastQuestion=questionDeck.pop();return lastQuestion;}
+function boardOutcomes(){
+ const deck=shuffle([...Array(18).fill('hot'),...Array(6).fill('question'),...Array(6).fill('win')]);
+ let previous='';try{previous=sessionStorage.getItem('strike-board-layout')||'';}catch{}
+ if(deck.join(',')===previous){const other=deck.findIndex(value=>value!==deck[0]);[deck[0],deck[other]]=[deck[other],deck[0]];}
+ try{sessionStorage.setItem('strike-board-layout',deck.join(','));}catch{}
+ return deck;
+}
 let cells=[],phase='idle',row=null,current=null,turns=0,wins=0,sound=false,audio=null,timer=null;
 function random(){const a=new Uint32Array(1);crypto.getRandomValues(a);return a[0]/4294967296;}
 function tone(kind){if(!sound)return;try{audio??=new (window.AudioContext||window.webkitAudioContext)();audio.resume();const notes=kind==='hot'?[180,120,70]:kind==='win'?[523,659,784,1047]:[440,587];notes.forEach((f,i)=>{const o=audio.createOscillator(),g=audio.createGain(),t=audio.currentTime+i*.13;o.frequency.value=f;o.type=kind==='hot'?'sawtooth':'sine';g.gain.setValueAtTime(.09,t);g.gain.exponentialRampToValueAtTime(.001,t+.25);o.connect(g);g.connect(audio.destination);o.start(t);o.stop(t+.26);});}catch{}}
@@ -44,10 +95,10 @@ function update(){
  document.querySelectorAll('.screen').forEach((b,i)=>{const c=cells[i];b.disabled=phase!=='screen'||c.row!==row||c.open;b.className='screen'+(c.open?' open '+c.outcome:'')+(current===i&&phase==='revealing'?' active':'');b.replaceChildren();const symbol=document.createElement('span');symbol.textContent=c.open?c.outcome==='hot'?'✹':c.outcome==='question'?'Q':'➜':c.number;b.append(symbol);if(c.open){const small=document.createElement('small');small.textContent=c.outcome==='hot'?'HOT SPOT':c.outcome==='question'?'QUESTION':'WIN';b.append(small);}b.setAttribute('aria-label',`${ROWS[c.row]} screen ${c.number}${c.open?': '+c.outcome:''}`);});
 }
 function action(label,fn,cls='primary'){const b=document.createElement('button');b.textContent=label;b.className=cls;b.onclick=fn;$('result-actions').append(b);}
-function showResult(kind,bonus=false){$('icon').className='result-icon '+kind;$('icon').textContent=kind==='hot'?'✹':kind==='question'?'Q':'➜';$('result-title').textContent=kind==='hot'?(bonus?'No win this time!':'HOT SPOT!'):kind==='question'?'One more question…':'You win!';$('result-copy').textContent=kind==='hot'?'Your turn ends here. Next student, get ready!':kind==='question'?'Answer the teacher’s bonus question correctly to win.':'Well done — you’ve earned your reward!';$('result-actions').replaceChildren();if(kind==='question'){action('Correct → win',()=>{wins++;tone('win');showResult('win',true);update();});action('Incorrect → no win',()=>{tone('hot');showResult('hot',true);},'danger');}else action('Next student',finish);if(!$('result').open)$('result').showModal();}
+function showResult(kind,bonus=false){$('result').querySelector('.question-answer')?.remove();$('icon').className='result-icon '+kind;$('icon').textContent=kind==='hot'?'✹':kind==='question'?'Q':'➜';$('result-title').textContent=kind==='hot'?(bonus?'No win this time!':'HOT SPOT!'):kind==='question'?'One more question…':'You win!';$('result-copy').textContent=kind==='hot'?'Your turn ends here. Next student, get ready!':kind==='question'?'Answer this general knowledge question correctly to win.':'Well done — you’ve earned your reward!';$('result-actions').replaceChildren();if(kind==='question'){const [question,answer]=nextQuestion();$('result-copy').textContent=question;const reveal=document.createElement('details');const label=document.createElement('summary');label.textContent='Show answer';label.style.cursor='pointer';const text=document.createElement('p');text.textContent=answer;reveal.append(label,text);$('result-actions').before(reveal);reveal.className='question-answer';action('Correct → win',()=>{wins++;tone('win');showResult('win',true);update();});action('Incorrect → no win',()=>{tone('hot');showResult('hot',true);},'danger');}else action('Next student',finish);if(!$('result').open)$('result').showModal();}
 function choose(i){if(phase!=='screen'||cells[i].row!==row||cells[i].open)return;phase='revealing';current=i;update();timer=setTimeout(()=>{timer=null;const c=cells[i];c.open=true;turns++;phase='result';if(c.outcome==='win')wins++;$('picked').textContent=`${ROWS[c.row]} · SCREEN ${c.number}`;tone(c.outcome);update();showResult(c.outcome);},$('motion').checked||matchMedia('(prefers-reduced-motion: reduce)').matches?0:1100);}
 function finish(){if(phase!=='result')return;$('result').close();phase='idle';row=null;current=null;update();if(! $('start').disabled)$('start').focus();else $('reset').focus();}
-function newBoard(){if(timer)clearTimeout(timer);timer=null;phase='idle';row=null;current=null;turns=0;wins=0;cells=ROWS.flatMap((_,r)=>Array.from({length:10},(_,n)=>({row:r,number:n+1,outcome:outcomeFor(random()),open:false})));$('board').replaceChildren();ROWS.forEach((name,r)=>{const wrap=document.createElement('div');wrap.className='row';const label=document.createElement('button');label.textContent=name.toUpperCase();label.className='row-choice';label.onclick=()=>{if(!['row','screen'].includes(phase))return;row=r;phase='screen';update();document.querySelectorAll('.screen')[cells.findIndex(c=>c.row===r&&!c.open)]?.focus();};wrap.append(label);cells.forEach((c,i)=>{if(c.row!==r)return;const b=document.createElement('button');b.className='screen';b.onclick=()=>choose(i);wrap.append(b);});$('board').append(wrap);});update();}
+function newBoard(){if(timer)clearTimeout(timer);timer=null;phase='idle';row=null;current=null;turns=0;wins=0;const outcomes=boardOutcomes();cells=ROWS.flatMap((_,r)=>Array.from({length:10},(_,n)=>({row:r,number:n+1,outcome:outcomes[r*10+n],open:false})));$('board').replaceChildren();ROWS.forEach((name,r)=>{const wrap=document.createElement('div');wrap.className='row';const label=document.createElement('button');label.textContent=name.toUpperCase();label.className='row-choice';label.onclick=()=>{if(!['row','screen'].includes(phase))return;row=r;phase='screen';update();document.querySelectorAll('.screen')[cells.findIndex(c=>c.row===r&&!c.open)]?.focus();};wrap.append(label);cells.forEach((c,i)=>{if(c.row!==r)return;const b=document.createElement('button');b.className='screen';b.onclick=()=>choose(i);wrap.append(b);});$('board').append(wrap);});update();}
 $('start').onclick=()=>{if(phase!=='idle')return;phase='row';update();document.querySelector('.row-choice:not(:disabled)')?.focus();};
 $('reset').onclick=()=>{if(turns||phase!=='idle'){if(!confirm('Start a fresh board and reset the turn and win totals?'))return;}newBoard();};
 $('help').onclick=()=>$('instructions').showModal();$('close-help').onclick=()=>$('instructions').close();
