@@ -2,22 +2,37 @@
 const $=id=>document.getElementById(id), NS='http://www.w3.org/2000/svg';
 const colours=['#f5bd4d','#63daca','#b9a2ff','#ff91ad','#77bbff','#ff9c61'];
 const used=new Set();
+const winChances=[80,70,60,50];
+let slotWins=[];
+function shuffle(items){for(let i=items.length-1;i>0;i--){const j=randomInt(i+1);[items[i],items[j]]=[items[j],items[i]];}return items;}
+function newSlotLayout(){
+ let previous='';try{previous=sessionStorage.getItem('plinko-slot-layout')||'';}catch{}
+ slotWins=shuffle(Array.from({length:12},(_,i)=>i<6));
+ if(slotWins.map(Number).join('')===previous){const win=slotWins.indexOf(true),lose=slotWins.indexOf(false);[slotWins[win],slotWins[lose]]=[slotWins[lose],slotWins[win]];}
+ try{sessionStorage.setItem('plinko-slot-layout',slotWins.map(Number).join(''));}catch{}
+ $('slots').replaceChildren();
+ for(let slot=0;slot<12;slot++){
+  const win=slotWins[slot],x=64+slot*56,group=svg('g',{id:`slot-${slot}`},$('slots'));
+  svg('rect',{x:x+2,y:532,width:52,height:78,rx:5,fill:win?'#12523e':'#632f43',stroke:'#526d89','stroke-width':2},group);
+  svg('text',{x:x+28,y:631,'text-anchor':'middle',fill:win?'#89ffc2':'#ffb4c1','font-family':'system-ui','font-size':13,'font-weight':900},group).textContent=win?'WIN':'LOSE';
+ }
+}
 let selected=0,busy=false,drops=0,wins=0,sound=true,audio=null,epoch=0;
 function randomInt(n){const a=new Uint32Array(1),limit=Math.floor(4294967296/n)*n;do{crypto.getRandomValues(a)}while(a[0]>=limit);return a[0]%n}
 function makePath(){
-  // Ten fair bounces, then a weighted final bounce between opposite results.
-  // Three of ten equally likely final draws win; seven lose on every route.
+  // Draw the outcome independently of the chosen disc, then build a valid
+  // shuffled route through the pegs to a matching slot.
+  const win=randomInt(100)<winChances[drops%winChances.length];
+  const targets=slotWins.map((value,index)=>value===win?index:-1).filter(index=>index>=0);
+  const slot=targets[randomInt(targets.length)];
+  const steps=shuffle(Array.from({length:11},(_,i)=>i<slot?28:-28));
   let x=400;const points=[{x,y:54}];
-  for(let row=0;row<11;row++){points.push({x,y:88+row*39});if(row<10)x+=randomInt(2)===0?-28:28;else {const leftSlot=(x-28-92)/56,wantsWin=randomInt(10)<3; x+=(leftSlot%2===0)===wantsWin?-28:28;}points.push({x,y:108+row*39})}
-  const slot=(x-92)/56;points.push({x,y:586});return {win:slot%2===0,slot,points};
+  for(let row=0;row<11;row++){points.push({x,y:88+row*39});x+=steps[row];points.push({x,y:108+row*39});}
+  points.push({x,y:586});return {win,slot,points};
 }
 function svg(tag,attrs,parent){const el=document.createElementNS(NS,tag);for(const [k,v] of Object.entries(attrs))el.setAttribute(k,v);parent.append(el);return el}
 for(let row=0;row<11;row++)for(let col=-row;col<=row;col+=2)svg('circle',{cx:400+col*28,cy:88+row*39,r:5,fill:'#b1cadc',stroke:'#e8f8ff','stroke-width':1},$('pegs'));
-for(let slot=0;slot<12;slot++){
- const win=slot%2===0,x=64+slot*56,group=svg('g',{id:`slot-${slot}`},$('slots'));
- svg('rect',{x:x+2,y:532,width:52,height:78,rx:5,fill:win?'#12523e':'#632f43',stroke:'#526d89','stroke-width':2},group);
- svg('text',{x:x+28,y:631,'text-anchor':'middle',fill:win?'#89ffc2':'#ffb4c1','font-family':'system-ui','font-size':13,'font-weight':900},group).textContent=win?'WIN':'LOSE';
-}
+
 colours.forEach((c,i)=>{const b=document.createElement('button');b.className='choice';b.style.setProperty('--disc',c);b.textContent=i+1;b.setAttribute('aria-label',`Choose disc ${i+1}`);b.onclick=()=>{if(busy||used.has(i))return;selected=i;position(400,54);clearLanding();renderChoice();message(`Disc ${i+1} is ready!`,'Press Drop for the next student.');tone(330+i*60,.09)};$('choices').append(b)});
 function position(x,y){$('disc').setAttribute('transform',`translate(${x} ${y})`)}
 function clearLanding(){$('confetti').replaceChildren();document.querySelectorAll('.landed').forEach(el=>el.classList.remove('landed'))}
@@ -49,8 +64,8 @@ $('drop').onclick=()=>{
   if(win&&!reduced)for(let j=0;j<35;j++)svg('rect',{x:90+randomInt(620),y:180+randomInt(300),width:5+randomInt(5),height:10,rx:2,fill:colours[j%6],class:'spark'},$('confetti'));
  }requestAnimationFrame(frame);
 };
-$('reset').onclick=()=>{if(busy)return;epoch++;used.clear();drops=wins=0;selected=0;score();renderChoice();position(400,54);clearLanding();message("Who's feeling lucky?",'Choose a disc, then press Drop.')};
+$('reset').onclick=()=>{if(busy)return;epoch++;used.clear();drops=wins=0;selected=0;newSlotLayout();score();renderChoice();position(400,54);clearLanding();message("Who's feeling lucky?",'Choose a disc, then press Drop.')};
 $('sound').onclick=()=>{sound=!sound;if(!sound&&audio)audio.suspend().catch(()=>{});$('sound').textContent='Sound: '+(sound?'On':'Off');$('sound').setAttribute('aria-pressed',String(sound));tone(660,.12)};
 $('full').onclick=async()=>{try{if(document.fullscreenElement)await document.exitFullscreen();else await document.documentElement.requestFullscreen()}catch{message('Full screen unavailable','You can still play in this window.')}};
 document.addEventListener('fullscreenchange',()=>{$('full').textContent=document.fullscreenElement?'Exit full screen':'Full screen'});
-position(400,54);renderChoice();
+newSlotLayout();position(400,54);renderChoice();
